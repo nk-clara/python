@@ -1,4 +1,4 @@
-###################### Interactive Diffraction Synth ####################
+###################### Interactive Diffraction Synth v1 (Python 3.11.0) ####################
 
 ## IMPORTING LIBRARIES
 import numpy as np

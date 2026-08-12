@@ -1,4 +1,4 @@
-###################### Interactive Diffraction Synth ####################
+###################### Interactive Diffraction Synth v2 ####################
 
 ## IMPORTING LIBRARIES
 import numpy as np
@@ -31,7 +31,7 @@ def aperture_function(N,a,b,padding):
         x: x-coordinates (in meteres) of the samples taken along the aperture axis
         aperture: the aperture function as a boolean array
 
-    Note:   currently only works for single and double slit apertures
+    Note:   currently only works for slit-like apertures
             (with a transmission of either 0 or 1 at a given x-coordinate)
 
     """
@@ -42,10 +42,25 @@ def aperture_function(N,a,b,padding):
     x = np.arange(-x_range/2,x_range/2,dx)
 
     # Determining the aperture function
+
     if N == 1:
         aperture = np.abs(x) < a/2
-    if N == 2:
-        aperture = (np.abs(x) > (b-a/2)) & (np.abs(x) < (b+a/2))
+    elif N % 2 == 0:
+        aperture = np.zeros(len(x), dtype=bool)
+        
+        slit_centers = np.arange(-(N-1)*b/2,(N+1)*b/2,b)
+
+        for centre in slit_centers:
+            aperture = aperture | (np.abs(x - centre) < a/2)
+    else:
+        aperture = np.zeros(len(x), dtype=bool)
+
+        slit_centers = np.arange(-(N-1)*b/2,(N+1)*b/2,b)
+
+        for centre in slit_centers:
+            aperture = aperture | (np.abs(x - centre) < a/2)
+                    
+
 
     return x, aperture
 
@@ -134,10 +149,7 @@ carrier_freq = freqs[0] # [Hz]
 
 
 x, aperture = aperture_function(1,a[a_index],None,padding)
-aperture_index = 0
-# Determines which aperture the modulation is based on
-# 1: single slit
-# 2: double slit
+num_slits = 1
 
 ## INITIATING INTERACTIVE BIT
 
@@ -232,8 +244,11 @@ def control_panel(x1,y1):
     screen.blit(d_label3, (x1+300, y1+86))
     screen.blit(d_label, (x1+300, y1-25))
 
-    explain_txt = font.render(f"Press SPACE to change the aperture shape", True, BLACK)
-    screen.blit(explain_txt, (x1+35, y1+125))
+    explain_txt = font.render("Press SPACE to change the aperture", True, BLACK)
+    slits_txt = font.render(f"Number of slits: {num_slits}",True,BLACK)
+
+    screen.blit(explain_txt, (x1+5, y1+125))
+    screen.blit(slits_txt, (x1+5, y1+140))
 
 
 
@@ -337,21 +352,21 @@ while running:
 
     x1, y1 = 80,350
     control_panel(x1,y1)
-    synth_keys(77,500,450,150)
+    synth_keys(77,520,450,150)
 
     if graph is not None:
         screen.blit(graph, (0,0))
 
     mouse = pygame.mouse.get_pos()
 
+    # set aperture function
+    if num_slits == 1:
+        x, aperture = aperture_function(num_slits,a[a_index],None,padding)
+    else:
+        x, aperture = aperture_function(num_slits,a[a_index],3*a[a_index],padding)
+
     # Response to events
     for event in pygame.event.get():
-
-        # set aperture function
-        if aperture_index == 0:
-            x, aperture = aperture_function(1,a[a_index],None,padding)
-        elif aperture_index == 1:
-            x, aperture = aperture_function(2,a[a_index],3*a[a_index],padding)
 
         if event.type == pygame.QUIT:
             running = False
@@ -383,10 +398,12 @@ while running:
                 d_index = 2
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and aperture_index == 0:
-                aperture_index = 1
-            elif event.key == pygame.K_SPACE and aperture_index == 1:
-                aperture_index = 0
+            if event.key == pygame.K_SPACE and num_slits == 1:
+                num_slits = 2
+            elif event.key == pygame.K_SPACE and num_slits == 2:
+                num_slits = 7
+            elif event.key == pygame.K_SPACE and num_slits == 7:
+                num_slits = 1
             
             if event.key == pygame.K_c:
                 audio, sr = modulate_sound(x,aperture,l[l_index],d[d_index],duration,freqs[0],scale)
